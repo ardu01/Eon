@@ -59,6 +59,25 @@ oldDraw();
 ctx.save();ctx.translate(ox,oy);ctx.scale(scale,scale);
 for(const c of cities){init(c);for(const b of c.buildings){if(b.x*scale+ox>-40&&b.x*scale+ox<innerWidth+40&&b.y*scale+oy>-40&&b.y*scale+oy<innerHeight+40)drawBuilding(b,c)}}
 ctx.restore();
+ctx.save();ctx.font='600 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+const occupied=[];
+for(const c of [...cities].sort((a,b)=>b.tech-a.tech)){
+const sx=ox+c.x*scale,sy=oy+(c.y-5)*scale;
+if(sx<65||sx>innerWidth-65||sy<115||sy>innerHeight-110)continue;
+const width=Math.min(180,Math.max(95,ctx.measureText(c.name).width+26)),height=27;
+const rect={x:sx-width/2,y:sy-13,w:width,h:height};
+if(occupied.some(r=>rect.x<r.x+r.w+8&&rect.x+rect.w+8>r.x&&rect.y<r.y+r.h+8&&rect.y+rect.h+8>r.y))continue;
+occupied.push(rect);
+ctx.fillStyle='#102522dd';ctx.beginPath();ctx.roundRect(rect.x,rect.y,width,height,8);ctx.fill();
+ctx.strokeStyle='#a8d0b455';ctx.stroke();
+ctx.fillStyle='#f3f5df';ctx.fillText(c.name,sx,sy);
+}
+ctx.restore();
+};
+const oldPick=pick;
+pick=function(x,y){
+for(const c of cities)for(const b of c.buildings||[])if(Math.hypot(b.x-x,b.y-y)<1.2)return inspect('building',b);
+return oldPick(x,y)
 };
 const oldInspect=inspect;
 inspect=function(type,obj,show=true){
