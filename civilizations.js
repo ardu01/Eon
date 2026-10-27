@@ -12,10 +12,11 @@ const stages=[
 {min:245,name:'Ciudad digital',building:'Centros tecnológicos',government:'Democracia'},
 {min:320,name:'Ciudad del futuro',building:'Torres inteligentes',government:'Federación'}];
 function stage(c){let a=stages[0];for(const s of stages)if(c.tech>=s.min)a=s;return a}
-function init(c){if(c.civVersion)return;c.civVersion=3;c.farms=Math.max(4,c.farms||0);c.food=Math.max(500,c.food||0);c.wood=Math.max(160,c.wood||0);c.stone=Math.max(100,c.stone||0);c.houses=Math.max(5,c.houses||0);c.education=20;c.stability=75;c.prosperity=45;c.medicine=5;c.infrastructure=5;c.buildings=[];c.lastStage=stage(c).name;c.citizensBorn=0;c.citizensDied=0;for(let j=0;j<4;j++)addBuilding(c,j)}
+function init(c){if(c.civVersion>=4)return;c.civVersion=4;c.farms=Math.max(4,c.farms||0);c.food=Math.max(500,c.food||0);c.wood=Math.max(160,c.wood||0);c.stone=Math.max(100,c.stone||0);c.houses=Math.max(5,c.houses||0);c.education=20;c.stability=75;c.prosperity=45;c.medicine=5;c.infrastructure=5;c.buildings=Array.isArray(c.buildings)?c.buildings:[];c.lastStage=stage(c).name;c.citizensBorn=0;c.citizensDied=0;c.buildings=c.buildings.filter(b=>land(Math.round(b.x),Math.round(b.y))&&tiles[idx(Math.round(b.x),Math.round(b.y))]!==4);for(let j=c.buildings.length;j<4;j++)addBuilding(c,j)}
 const types=['Vivienda','Granja','Granero','Taller','Mercado','Escuela','Templo','Hospital','Fábrica','Universidad','Estación','Rascacielos'];
 function available(c){let t=c.tech;return Math.min(types.length,t<12?3:t<28?4:t<50?5:t<78?7:t<145?8:t<190?10:t<245?11:12)}
-function addBuilding(c,force){initSafe(c);if(c.buildings.length>=55)return;let n=c.buildings.length;let type=force===undefined?Math.floor(Math.random()*available(c)):force%available(c);let angle=n*2.399963;let r=2+Math.sqrt(n)*1.65;c.buildings.push({id:'b'+c.id+n,type:types[type],x:c.x+Math.cos(angle)*r,y:c.y+Math.sin(angle)*r,level:1,year});}
+function validSite(x,y,c){let ix=Math.round(x),iy=Math.round(y);if(!land(ix,iy))return false;if(tiles[idx(ix,iy)]===4)return false;if(Math.hypot(ix-c.x,iy-c.y)>16)return false;for(const city of cities)if(city!==c&&Math.hypot(ix-city.x,iy-city.y)<4)return false;for(const city of cities)for(const b of city.buildings||[])if(Math.hypot(ix-b.x,iy-b.y)<2.2)return false;return true}
+function addBuilding(c,force){initSafe(c);if(c.buildings.length>=55)return false;let n=c.buildings.length,type=force===undefined?Math.floor(Math.random()*available(c)):force%available(c);for(let j=0;j<260;j++){let angle=(n+j)*2.399963,rad=2+Math.sqrt(n+j)*1.65,x=Math.round(c.x+Math.cos(angle)*rad),y=Math.round(c.y+Math.sin(angle)*rad);if(validSite(x,y,c)){c.buildings.push({id:'b'+c.id+n+'-'+j,type:types[type],x,y,level:1,year});return true}}return false}
 function initSafe(c){if(!Array.isArray(c.buildings))c.buildings=[]}
 for(const c of cities)init(c);
 const prevUpdate=update;
@@ -36,7 +37,7 @@ if(n<old)c.citizensDied+=old-n;
 else c.citizensBorn+=n-old;
 if(n===0&&c.food>30){for(let i=0;i<8;i++){let p=createPerson(c.x+ri(5)-2,c.y+ri(5)-2,c);if(p){p.age=ri(24)+16;p.health=100;p.hunger=100}}log('Supervivientes repueblan '+c.name+'.')}
 if(n>0&&n<10&&people.length<1600&&frame%3===0){let p=createPerson(c.x+ri(5)-2,c.y+ri(5)-2,c);if(p){p.age=ri(20)+12;p.health=100;p.hunger=100}}
-if(frame%7===0&&c.buildings.length<Math.min(55,6+Math.floor(n/3)+Math.floor(c.tech/8))&&c.wood>20){addBuilding(c);c.wood-=20;}
+if(frame%7===0&&c.buildings.length<Math.min(55,6+Math.floor(n/3)+Math.floor(c.tech/8))&&c.wood>20){if(addBuilding(c))c.wood-=20;}
 if(stage(c).name!==c.lastStage){c.lastStage=stage(c).name;c.government=stage(c).government;log('🏛 '+c.name+' evoluciona: '+c.lastStage+'. Aparecen nuevas construcciones y formas de gobierno.');}
 if(frame%30===0&&n>0){c.infrastructure=Math.min(100,c.infrastructure+.4);c.medicine=Math.min(100,c.medicine+.2);}
 }
@@ -62,7 +63,7 @@ ctx.restore();
 const oldInspect=inspect;
 inspect=function(type,obj,show=true){
 oldInspect(type,obj,show);
-if(type!=='city')return;
+if(type==='building'){let el=document.getElementById('inspector');el.innerHTML='<button style="float:right" id="closeBuilding">✕</button><small>CONSTRUCCIÓN</small><h2>'+esc(obj.type)+'</h2>'+kv('Nivel',obj.level)+kv('Año de construcción',obj.year<0?(-obj.year)+' a. C.':obj.year+' d. C.');document.getElementById('closeBuilding').onclick=()=>{el.classList.remove('show');selected=null};return}if(type!=='city')return;
 init(obj);let el=document.getElementById('inspector');
 let ext=document.createElement('div');ext.innerHTML='<h3 style="margin-top:18px">Sociedad y evolución</h3>'+kv('Etapa urbana',stage(obj).name)+kv('Edificios',obj.buildings.length)+kv('Educación',Math.round(obj.education)+'%')+kv('Estabilidad',Math.round(obj.stability)+'%')+kv('Prosperidad',Math.round(obj.prosperity)+'%')+kv('Medicina',Math.round(obj.medicine)+'%')+kv('Infraestructura',Math.round(obj.infrastructure)+'%')+kv('Nacimientos registrados',obj.citizensBorn)+kv('Descensos de población',obj.citizensDied)+'<h3>Construcciones</h3><div id="buildinglist"></div><button id="buildNow">Construir edificio</button>';
 el.appendChild(ext);
@@ -75,5 +76,5 @@ const oldGen=gen;
 gen=function(){oldGen();for(const c of cities)init(c)};
 const oldCreateCity=createCity;
 createCity=function(x,y,name){let c=oldCreateCity(x,y,name);if(c)init(c);return c};
-log('Actualización de sociedades: edificios y desarrollo histórico activados.');
+log('EON v0.4: urbanismo con suelo edificable y separación de construcciones.');
 })();
